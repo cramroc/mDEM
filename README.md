@@ -1,3 +1,7 @@
+# Update:
+I worked on this
+- Carlos RR
+
 # The mixed deep energy method for resolving concentration features in finite strain hyperelasticity
 
   - Author: Jan N Fuhg
