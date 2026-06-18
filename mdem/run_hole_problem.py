@@ -27,9 +27,8 @@ iterationADAM = 5000
 lrADAM = 1e-3
 CoVFlag = True
 
-# Path to folder
-folder_path = "C:\\Users\\Carlos\\OneDrive - King's College London\\University\\KCL - Biomedical " \
-              "Engineering\\BioMedEng Y4\\Individual Research Project Y4\\Other Code\\mixedDEM-main"
+# Path to folder (repo root, relative). Outputs are written to ./output/vtk_files/
+folder_path = "."
 
 # Material parameters
 E = 1000  # Young's modulus
