@@ -25,6 +25,11 @@ class CoVWeightingMethod:
 
     def set_num_losses(self, num_losses):
         self.criterion.set_num_losses(num_losses)
+        # Keep mean_weights in sync with the loss-vector length (num_losses):
+        # it accumulates one running weight per loss term across epochs, so a
+        # stale length would IndexError once the real count (6) replaces the
+        # placeholder value (2) set in __init__.
+        self.mean_weights = [0.0 for _ in range(num_losses)]
 
     def run_epoch(self, current_epoch, loss, optimizer):
         # First, adjust learning rate.

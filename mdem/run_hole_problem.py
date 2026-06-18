@@ -531,20 +531,29 @@ class mDeepEnergyMethod:
             #                      self.loss_sum(torch.pow(outin1, 2)) + self.loss_sum(torch.pow(outin2, 2))
             #                      ])
 
-            # change the num_losses of the CoV loss calculations to the amount of losses there actually are
+            # Multi-loss vector for CoV weighting. Keep each term as a LIVE,
+            # graph-connected tensor so the autograd graph back to the network
+            # is preserved (this is what the original "variable-independence"
+            # bug broke). boundary_loss is omitted: the Dirichlet BCs are
+            # hard-constrained in getU, so that term is identically zero.
+            loss = [energy_loss,
+                    (Pxx_loss + Pxy_loss + Pyx_loss + Pyy_loss),
+                    loscBC,
+                    (t1_loss + t2_loss),
+                    self.loss_sum(torch.pow(out1, 2)) + self.loss_sum(torch.pow(out2, 2)),
+                    self.loss_sum(torch.pow(outin1, 2)) + self.loss_sum(torch.pow(outin2, 2))]
+
+            # set num_losses to the actual number of loss terms
             if t == 0:
                 self.covm.set_num_losses(len(loss))
 
-            print("LOSSES:   ", loss)
-            print("SUMMED LOSSES:   ", np.sum(list(loss)))
-
             optimizer.zero_grad()
             if CoVFlag:
-                # Implement CoV weighting to losses
+                # CoV weighting computes the weighted sum, backprops and steps.
                 loss = self.covm.run_epoch(current_epoch=t, loss=loss, optimizer=optimizer)
-                print("SUMMED WEIGHTED LOSSES:   ", loss)
             else:
-                # backward pass
+                # Unweighted baseline: simple sum of the loss terms.
+                loss = sum(loss)
                 loss.backward()
                 optimizer.step()
                 scheduler.step()

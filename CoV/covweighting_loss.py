@@ -30,12 +30,23 @@ class CoVWeightingLoss(nn.modules.Module):
         self.running_std_l = None
 
     def set_num_losses(self, num_losses):
+        # Reallocate ALL running-statistic buffers to the real loss count.
+        # (Previously only the counter was updated, leaving size-mismatched
+        # buffers from __init__.)
         self.num_losses = num_losses
+        self.current_iter = -1
+        self.running_std_l = None
+        self.alphas = torch.zeros((num_losses,)).type(torch.FloatTensor).to(self.device)
+        self.running_mean_L = torch.zeros((num_losses,)).type(torch.FloatTensor).to(self.device)
+        self.running_mean_l = torch.zeros((num_losses,)).type(torch.FloatTensor).to(self.device)
+        self.running_S_l = torch.zeros((num_losses,)).type(torch.FloatTensor).to(self.device)
 
     def forward(self, unweighted_losses):
         # Put the losses in a list. Just for computing the weights.
-        L = torch.tensor(unweighted_losses, requires_grad=True).to(self.device)
-        # L = unweighted_losses.clone().detach().requires_grad_(True).to(self.device)
+        # Detached stack ONLY for the running statistics (we never backprop
+        # through the weights). The live tensors in `unweighted_losses` are
+        # used for the weighted sum below, which preserves the autograd graph.
+        L = torch.stack([l.detach() for l in unweighted_losses]).to(self.device)
 
         # If we are doing validation, we would like to return an unweighted loss be able
         # to see if we do not overfit on the training set.
@@ -55,7 +66,9 @@ class CoVWeightingLoss(nn.modules.Module):
                 self.device) / self.num_losses
         # Else, apply the loss weighting method.
         else:
-            ls = self.running_std_l / self.running_mean_l
+            # + 1e-12 is a divide-by-zero guard: if a term's running mean is
+            # ~0, the ratio would blow up to inf/nan and corrupt every weight.
+            ls = self.running_std_l / (self.running_mean_l + 1e-12)
             self.alphas = ls / torch.sum(ls)
 
         # Apply Welford's algorithm to keep running means, variances of L,l. But only do this throughout
